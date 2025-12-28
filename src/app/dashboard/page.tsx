@@ -130,14 +130,35 @@ export default function Dashboard() {
       if (logsError) throw logsError;
       setAttendanceLogs(logsData || []);
 
-      // Fetch ESP devices
+      // Fetch real devices from the devices table
       const { data: devicesData, error: devicesError } = await supabase
-        .from("esp_devices")
+        .from("devices")
         .select("*")
-        .order("device_id");
+        .order("device_name");
 
       if (devicesError) throw devicesError;
-      setDevices(devicesData || []);
+      
+      // Transform devices to ESPDevice format for SystemStatusBar
+      const transformedDevices: ESPDevice[] = (devicesData || []).map((device) => {
+        // Check if device was seen in the last 5 minutes to determine online status
+        const lastSeen = device.last_seen ? new Date(device.last_seen) : null;
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        const isOnline = lastSeen && lastSeen > fiveMinutesAgo;
+        
+        return {
+          id: device.id,
+          device_id: device.id,
+          device_name: device.device_name,
+          ip_address: null,
+          last_heartbeat: device.last_seen || device.created_at,
+          status: isOnline ? "online" : "offline",
+          cache_size: 0,
+          uptime_seconds: 0,
+          created_at: device.created_at,
+        };
+      });
+      
+      setDevices(transformedDevices);
 
       // Calculate stats
       const today = new Date();
@@ -202,13 +223,44 @@ export default function Dashboard() {
         .eq("uid", data.uid)
         .single();
 
+      // Get today's start (midnight) for the selected timestamp
+      const selectedDate = new Date(data.timestamp);
+      const dayStart = new Date(selectedDate);
+      dayStart.setHours(0, 0, 0, 0);
+      
+      // Check last scan for this UID on the same day
+      const { data: lastTodayLog } = await supabase
+        .from("attendance_logs")
+        .select("*")
+        .eq("uid", data.uid)
+        .gte("timestamp", dayStart.toISOString())
+        .lt("timestamp", new Date(dayStart.getTime() + 24 * 60 * 60 * 1000).toISOString())
+        .order("timestamp", { ascending: false })
+        .limit(1)
+        .single();
+
+      // Determine IN or OUT
+      let scanType: "IN" | "OUT" = "IN";
+      let status = student ? "success" : "unknown";
+      
+      if (student) {
+        if (!lastTodayLog || lastTodayLog.type === "OUT") {
+          scanType = "IN";
+          status = "success";
+        } else {
+          scanType = "OUT";
+          status = "success";
+        }
+      }
+
       const { error } = await supabase.from("attendance_logs").insert([
         {
           uid: data.uid,
           student_id: student?.id || null,
-          status: student ? "success" : "unknown",
+          status,
           timestamp: data.timestamp,
           manual_entry: true,
+          type: scanType,
         },
       ]);
 

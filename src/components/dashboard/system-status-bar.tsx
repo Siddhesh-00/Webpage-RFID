@@ -54,27 +54,31 @@ export function SystemStatusBar({
               </span>
             </div>
 
-            <div className="flex gap-2">
-              {devices.slice(0, 3).map((device) => (
-                <button
-                  key={device.id}
-                  onClick={() => setSelectedDevice(device)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all hover:scale-105 active:scale-95 ${
-                    device.status === "online"
-                      ? "bg-primary/20 text-primary border border-primary/30"
-                      : "bg-muted text-muted-foreground border border-border"
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5">
-                    {device.status === "online" ? (
-                      <Wifi className="w-3 h-3" />
-                    ) : (
-                      <WifiOff className="w-3 h-3" />
-                    )}
-                    {device.device_name || device.device_id}
-                  </div>
-                </button>
-              ))}
+            <div className="flex gap-2 flex-wrap">
+              {devices.length === 0 ? (
+                <span className="text-xs text-muted-foreground">No devices registered</span>
+              ) : (
+                devices.map((device) => (
+                  <button
+                    key={device.id}
+                    onClick={() => setSelectedDevice(device)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all hover:scale-105 active:scale-95 ${
+                      device.status === "online"
+                        ? "bg-primary/20 text-primary border border-primary/30"
+                        : "bg-muted text-muted-foreground border border-border"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      {device.status === "online" ? (
+                        <Wifi className="w-3 h-3" />
+                      ) : (
+                        <WifiOff className="w-3 h-3" />
+                      )}
+                      {device.device_name || device.device_id}
+                    </div>
+                  </button>
+                ))
+              )}
             </div>
           </div>
 

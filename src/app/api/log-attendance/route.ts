@@ -113,16 +113,14 @@ export async function POST(request: NextRequest) {
       scanType = lastTodayLog.type || "IN";
     } else {
       // Determine IN or OUT based on last scan today
+      // First successful scan = IN with Present status
+      // Second successful scan = OUT with success status
       if (!lastTodayLog || lastTodayLog.type === "OUT") {
         scanType = "IN";
-        // Check if it's late (after 9:00 AM for example)
-        const now = new Date();
-        const hours = now.getHours();
-        const minutes = now.getMinutes();
-        const isLate = hours > 9 || (hours === 9 && minutes > 0);
-        status = isLate ? "Late" : "Present";
+        status = "Present";
         message = `${student.name} - ${scanType} (${status})`;
       } else {
+        // Previous scan was IN, now it's OUT
         scanType = "OUT";
         status = "success";
         message = `${student.name} - ${scanType}`;
