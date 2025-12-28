@@ -401,7 +401,7 @@ export default function Dashboard() {
 
           {/* Live Feed Right Rail */}
           <aside className="w-96 glassmorphic border-l border-border/50">
-            <LiveFeedPanel logs={attendanceLogs} />
+            <LiveFeedPanel logs={attendanceLogs} onLogsUpdate={fetchData} />
           </aside>
         </div>
 

@@ -81,36 +81,52 @@ export async function POST(request: NextRequest) {
       throw studentError;
     }
 
-    // Check for duplicate scan in the last 5 minutes
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    const { data: recentLog } = await supabase
+    // Get today's start (midnight)
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    
+    // Check last scan today
+    const { data: lastTodayLog } = await supabase
       .from("attendance_logs")
       .select("*")
       .eq("uid", uid)
-      .gte("timestamp", fiveMinutesAgo)
+      .gte("timestamp", todayStart.toISOString())
       .order("timestamp", { ascending: false })
       .limit(1)
       .single();
 
-    // Determine status
+    // Check for duplicate scan in the last 5 minutes
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const isDuplicateRecent = lastTodayLog && new Date(lastTodayLog.timestamp) > new Date(fiveMinutesAgo);
+
+    // Determine status and scan type (IN/OUT)
     let status: "success" | "duplicate" | "unknown" | "Present" | "Late";
     let message: string;
+    let scanType: "IN" | "OUT" = "IN";
 
     if (!student) {
       status = "unknown";
       message = "Unknown Card - UID not registered";
-    } else if (recentLog) {
+    } else if (isDuplicateRecent) {
       status = "duplicate";
-      message = `Duplicate scan - ${student.name} already scanned at ${new Date(recentLog.timestamp).toLocaleTimeString()}`;
+      message = `Duplicate scan - ${student.name} already scanned at ${new Date(lastTodayLog.timestamp).toLocaleTimeString()}`;
+      scanType = lastTodayLog.type || "IN";
     } else {
-      // Check if it's late (after 9:00 AM for example)
-      const now = new Date();
-      const hours = now.getHours();
-      const minutes = now.getMinutes();
-      const isLate = hours > 9 || (hours === 9 && minutes > 0);
-
-      status = isLate && type === "IN" ? "Late" : "Present";
-      message = `Attendance recorded for ${student.name} - ${status}`;
+      // Determine IN or OUT based on last scan today
+      if (!lastTodayLog || lastTodayLog.type === "OUT") {
+        scanType = "IN";
+        // Check if it's late (after 9:00 AM for example)
+        const now = new Date();
+        const hours = now.getHours();
+        const minutes = now.getMinutes();
+        const isLate = hours > 9 || (hours === 9 && minutes > 0);
+        status = isLate ? "Late" : "Present";
+        message = `${student.name} - ${scanType} (${status})`;
+      } else {
+        scanType = "OUT";
+        status = "success";
+        message = `${student.name} - ${scanType}`;
+      }
     }
 
     // Insert attendance log
@@ -121,7 +137,7 @@ export async function POST(request: NextRequest) {
         status: status === "Present" || status === "Late" ? "success" : status,
         device_id: device_id || device.device_name || null,
         manual_entry: false,
-        type: type || "IN",
+        type: scanType,
       },
     ]);
 
@@ -140,7 +156,7 @@ export async function POST(request: NextRequest) {
         parent_phone: student?.parent_contact || null,
         attendance_status: status,
         message,
-        scan_type: type,
+        scan_type: scanType,
         latency,
         timestamp: new Date().toISOString(),
       },
