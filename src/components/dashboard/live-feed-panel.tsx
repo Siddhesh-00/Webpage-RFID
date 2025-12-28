@@ -4,13 +4,8 @@ import { AttendanceLog } from "@/types/attendance";
 import { CheckCircle2, AlertCircle, HelpCircle, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { useEffect, useRef, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "../../../supabase/client";
 import { toast } from "sonner";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 interface LiveFeedPanelProps {
   logs: AttendanceLog[];
@@ -20,6 +15,7 @@ interface LiveFeedPanelProps {
 export function LiveFeedPanel({ logs, onLogsUpdate }: LiveFeedPanelProps) {
   const feedRef = useRef<HTMLDivElement>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const supabase = createClient();
 
   useEffect(() => {
     if (feedRef.current) {
