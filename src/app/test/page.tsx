@@ -3,12 +3,11 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export default function TestPage() {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
   const [logs, setLogs] = useState<any[]>([]);
   const [devices, setDevices] = useState<any[]>([]);
   const [status, setStatus] = useState('Loading...');
