@@ -137,6 +137,7 @@ export async function POST(request: NextRequest) {
         student_roll_no: student?.roll_no || student?.roll_number || null,
         student_branch: student?.branch || student?.department || null,
         student_division: student?.division || null,
+        parent_phone: student?.parent_contact || null,
         attendance_status: status,
         message,
         scan_type: type,

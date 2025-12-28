@@ -44,6 +44,14 @@ export function LiveFeedPanel({ logs }: LiveFeedPanelProps) {
           bgColor: "bg-destructive/10",
           borderColor: "border-destructive/30",
         };
+      default:
+        return {
+          icon: HelpCircle,
+          label: "Unknown",
+          color: "text-muted-foreground",
+          bgColor: "bg-muted/10",
+          borderColor: "border-muted/30",
+        };
     }
   };
 

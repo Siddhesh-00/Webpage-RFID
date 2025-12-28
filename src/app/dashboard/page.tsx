@@ -41,11 +41,57 @@ export default function Dashboard() {
   useEffect(() => {
     checkAuth();
     fetchData();
+    
+    // Set up real-time subscription for attendance logs
+    const channel = supabase
+      .channel('attendance-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'attendance_logs',
+        },
+        async (payload) => {
+          console.log('New attendance log received:', payload);
+          // Fetch the complete log with student data
+          const { data: newLog, error } = await supabase
+            .from('attendance_logs')
+            .select(`
+              *,
+              student:students(*)
+            `)
+            .eq('id', payload.new.id)
+            .single();
+          
+          if (!error && newLog) {
+            setAttendanceLogs((prev) => [newLog, ...prev].slice(0, 50));
+            // Update stats
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (new Date(newLog.timestamp) >= today) {
+              setStats((prev) => ({
+                ...prev,
+                today_count: prev.today_count + 1,
+                unique_scans: newLog.status === 'success' ? prev.unique_scans + 1 : prev.unique_scans,
+                duplicate_attempts: newLog.status === 'duplicate' ? prev.duplicate_attempts + 1 : prev.duplicate_attempts,
+              }));
+            }
+            toast.success(`Scan received: ${newLog.student?.name || 'Unknown'}`);
+          }
+        }
+      )
+      .subscribe();
+    
+    // Fallback polling every 10 seconds
     const interval = setInterval(() => {
       fetchData();
-    }, 5000); // Refresh every 5 seconds
+    }, 10000);
 
-    return () => clearInterval(interval);
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
   }, []);
 
   const checkAuth = async () => {
@@ -114,7 +160,7 @@ export default function Dashboard() {
         today_count: todayLogs.length,
         unique_scans: uniqueUIDs.size,
         duplicate_attempts: duplicates,
-        average_response_time: Math.floor(Math.random() * 200) + 50, // Mock response time
+        average_response_time: 0,
       });
 
       setLastSync(new Date());
